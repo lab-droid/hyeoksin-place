@@ -46,6 +46,9 @@ export default function App() {
     return localStorage.getItem('GEMINI_API_KEY') || '';
   });
   const [showKeyInput, setShowKeyInput] = useState(false);
+  const [businessName, setBusinessName] = useState('');
+  const [address, setAddress] = useState('');
+  const [industry, setIndustry] = useState('');
   const [placeUrl, setPlaceUrl] = useState('');
   const [requests, setRequests] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
@@ -86,8 +89,8 @@ export default function App() {
       return;
     }
     
-    if (!placeUrl) {
-      setError('스마트 플레이스 주소를 입력해주세요.');
+    if (!businessName || !address || !industry) {
+      setError('업체명, 주소명, 업종은 필수 입력 항목입니다.');
       return;
     }
 
@@ -97,9 +100,13 @@ export default function App() {
     try {
       const genAI = new GoogleGenAI({ apiKey });
       const prompt = `
-        스마트플레이스 주소: ${placeUrl}
+        업체명: ${businessName}
+        주소명: ${address}
+        업종: ${industry}
+        ${placeUrl ? `스마트플레이스 주소: ${placeUrl}` : ''}
 
-        위 플레이스 링크의 정보를 분석하여 다음 항목들을 작성해주세요.
+        ${placeUrl ? '제공된 스마트플레이스 주소(URL)에 직접 접속하여 해당 업체의 실제 웹페이지 내용을 꼼꼼히 읽고 분석해주세요.' : '제공된 업체명, 주소명, 업종 정보를 바탕으로 네이버 스마트 플레이스 최적화를 위한 분석을 진행해주세요.'}
+        ${placeUrl ? '웹페이지에서 확인된 실제 업체명, 메뉴, 소개글, 리뷰 특징 등을 바탕으로 다음 항목들을 정확하게 작성해주세요.' : '해당 업종과 지역의 특성을 고려하여 다음 항목들을 정확하게 작성해주세요.'}
         
         1. 최적화 세팅 요청 항목 (5~7가지):
            업체가 자신의 강점을 드러내기 위해 답변하거나 준비해야 할 구체적인 질문이나 포인트입니다. (이미지, 공지사항, 리뷰 대응, 키워드 배치 등 포함)
@@ -121,8 +128,12 @@ export default function App() {
       `;
 
       const result = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ parts: [{ text: prompt }] }]
+        model: "gemini-3.1-pro-preview",
+        contents: prompt,
+        config: {
+          tools: [{ urlContext: {} }, { googleSearch: {} }],
+          toolConfig: { includeServerSideToolInvocations: true }
+        }
       });
       
       setRequests(result.text || '');
@@ -140,8 +151,8 @@ export default function App() {
       return;
     }
     
-    if (!placeUrl) {
-      setError('플레이스 주소를 입력해주세요.');
+    if (!businessName || !address || !industry) {
+      setError('업체명, 주소명, 업종은 필수 입력 항목입니다.');
       return;
     }
 
@@ -156,8 +167,13 @@ export default function App() {
         당신은 네이버 스마트 플레이스 최적화 전문가입니다.
         다음 정보를 바탕으로 자세한 분석 보고서와 마케팅 로드맵을 작성해주세요.
         
-        스마트플레이스 주소: ${placeUrl}
+        업체명: ${businessName}
+        주소명: ${address}
+        업종: ${industry}
+        ${placeUrl ? `스마트플레이스 주소: ${placeUrl}` : ''}
         분석 데이터 및 최적화 제안: ${requests}
+
+        ${placeUrl ? '제공된 스마트플레이스 주소(URL)에 직접 접속하여 해당 업체의 실제 웹페이지 내용을 확인한 후,\n        위의 분석 데이터를 바탕으로 다음 구성에 맞게 정확하고 구체적인 보고서를 작성해주세요.' : '제공된 업체명, 주소명, 업종 정보와 위의 분석 데이터를 바탕으로 다음 구성에 맞게 정확하고 구체적인 보고서를 작성해주세요.'}
 
         [보고서 구성 요구사항]
         1. 네이버 스마트 플레이스 현재 상태 분석 및 진단
@@ -181,8 +197,12 @@ export default function App() {
       `;
 
       const result = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ parts: [{ text: prompt }] }]
+        model: "gemini-3.1-pro-preview",
+        contents: prompt,
+        config: {
+          tools: [{ urlContext: {} }, { googleSearch: {} }],
+          toolConfig: { includeServerSideToolInvocations: true }
+        }
       });
       const text = result.text;
 
@@ -420,13 +440,49 @@ export default function App() {
         {/* Input Section */}
         <section className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-xl shadow-gray-200/50 border border-gray-50 mb-8">
           <div className="space-y-6 mb-8">
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
-                <Globe size={14} className="text-teal-500" />
-                스마트 플레이스 주소
-              </label>
-              <div className="flex flex-col gap-3">
-                <div className="flex gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
+                  업체명 <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder="예: 스타벅스 강남점"
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-lg font-medium"
+                />
+              </div>
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
+                  업종 <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  placeholder="예: 카페, 이탈리안 레스토랑"
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-lg font-medium"
+                />
+              </div>
+              <div className="space-y-3 md:col-span-2">
+                <label className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
+                  주소명 <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="예: 서울 강남구 테헤란로 123"
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-lg font-medium"
+                />
+              </div>
+              <div className="space-y-3 md:col-span-2">
+                <label className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
+                  <Globe size={14} className="text-teal-500" />
+                  스마트 플레이스 주소 <span className="text-gray-400 font-normal normal-case">(선택)</span>
+                </label>
+                <div className="flex flex-col md:flex-row gap-3">
                   <input 
                     type="text" 
                     value={placeUrl}
@@ -436,15 +492,15 @@ export default function App() {
                   />
                   <button 
                     onClick={handlePlaceAnalysis}
-                    disabled={analyzing || !placeUrl}
-                    className="px-8 bg-teal-600 text-white rounded-2xl font-black text-sm hover:bg-teal-700 transition-all disabled:opacity-50 whitespace-nowrap shadow-lg shadow-teal-100"
+                    disabled={analyzing || !businessName || !address || !industry}
+                    className="px-8 py-4 bg-teal-600 text-white rounded-2xl font-black text-sm hover:bg-teal-700 transition-all disabled:opacity-50 whitespace-nowrap shadow-lg shadow-teal-100"
                   >
                     {analyzing ? '분석 중...' : '플레이스 최적화 분석'}
                   </button>
                 </div>
-                <p className="text-xs text-red-500 font-bold flex items-center gap-1">
+                <p className="text-xs text-teal-600 font-bold flex items-center gap-1">
                   <Info size={12} />
-                  반드시 모바일 링크(m.place.naver.com/...) 형식으로 입력해주세요.
+                  스마트 플레이스 주소를 입력하시면 더욱 정확한 분석이 가능합니다. (모바일 링크 권장)
                 </p>
               </div>
             </div>

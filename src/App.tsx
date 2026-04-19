@@ -30,7 +30,8 @@ import {
   Globe,
   FileDown,
   MapPin,
-  Hexagon
+  Hexagon,
+  History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -40,8 +41,57 @@ interface ReportData {
   roadmap: string;
 }
 
+const PATCH_NOTES = [
+  {
+    date: '2024.03.26',
+    title: '플레이스 주소 정밀 분석 & UI 고도화',
+    changes: [
+      '스마트 플레이스 주소 입력 시 실제 웹페이지 내용 기반 정밀 분석 기능 추가',
+      '업체명, 주소명, 업종 필수 입력 항목으로 변경하여 분석 정확도 향상',
+      '3D 일러스트레이션 테마 및 세련된 컬러 테두리 UI 업데이트',
+      '패치노트 및 예상 API 비용 표시 기능 추가'
+    ]
+  },
+  {
+    date: '2024.03.25',
+    title: '분석 명칭 변경 및 항목 확장',
+    changes: [
+      '\'항목 브레인스토밍\' 기능을 \'플레이스 최적화 분석\'으로 직관적 명칭 변경',
+      '지역명, 대표메뉴/대표서비스 상세 정보 입력 필드 추가',
+      'AI 프롬프트 고도화를 통한 지역 밀착형 최적화 제안 기능 강화'
+    ]
+  },
+  {
+    date: '2024.03.24',
+    title: 'AI 보고서 가독성 개선',
+    changes: [
+      '보고서 내 굵게, 빨간색, 파란색, 노란색 배경 강조 스타일링 적용',
+      'docx 다운로드 시 해당 스타일이 유지되도록 변환 엔진 업그레이드',
+      '업체 이름이 포함된 자동 제목 생성 기능 추가'
+    ]
+  },
+  {
+    date: '2024.03.23',
+    title: '문서 자동 생성 기능 도입',
+    changes: [
+      '분석 결과를 docx 파일로 즉시 다운로드하는 기능 구현',
+      '복사 방지 기능 및 AI 분석 전문가 서명 추가'
+    ]
+  },
+  {
+    date: '2024.03.22',
+    title: '혁신 플레이스 최적화 AI 베타 런칭',
+    changes: [
+      '네이버 스마트 플레이스 최적화 전문가 AI 엔진 개발',
+      '대표 키워드 추천 및 상세설명 자동 작성 기능 구현',
+      '첫 페이지 소식(게시물) 기획 기능 탑재'
+    ]
+  }
+];
+
 export default function App() {
   const [showUsage, setShowUsage] = useState(false);
+  const [showPatchNotes, setShowPatchNotes] = useState(false);
   const [apiKey, setApiKey] = useState<string>(() => {
     return localStorage.getItem('GEMINI_API_KEY') || '';
   });
@@ -128,7 +178,7 @@ export default function App() {
       `;
 
       const result = await genAI.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3-flash-preview",
         contents: prompt,
         config: {
           tools: [{ urlContext: {} }, { googleSearch: {} }],
@@ -197,7 +247,7 @@ export default function App() {
       `;
 
       const result = await genAI.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3-flash-preview",
         contents: prompt,
         config: {
           tools: [{ urlContext: {} }, { googleSearch: {} }],
@@ -300,6 +350,7 @@ export default function App() {
           <AnimatePresence>
             {showUsage && (
               <motion.div 
+                key="usage-instructions"
                 initial={{ opacity: 0, x: -20, y: -10 }}
                 animate={{ opacity: 1, x: 0, y: 0 }}
                 exit={{ opacity: 0, x: -20, y: -10 }}
@@ -333,41 +384,101 @@ export default function App() {
         </div>
 
         {/* Right: API Key Status & Settings */}
-        <div className="pointer-events-auto flex flex-col items-end gap-2">
-          <button 
-            onClick={() => setShowKeyInput(!showKeyInput)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all ${
-              apiKey ? 'bg-teal-50 text-teal-700 border border-teal-100' : 'bg-white text-gray-700 border border-gray-100'
-            }`}
-          >
-            <Key size={16} />
-            <span className="text-sm font-medium">API Key {apiKey ? '적용됨' : '미적용'}</span>
-          </button>
+          <div className="pointer-events-auto flex flex-col items-end gap-2">
+            {/* API Cost Display */}
+            <div className="bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-teal-100 shadow-sm flex items-center gap-2 cursor-help group relative">
+              <Hexagon size={12} className="text-teal-500 transition-transform group-hover:rotate-180 duration-500" />
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">예상 API 비용:</span>
+              <span className="text-[11px] font-black text-teal-700">약 15원 ~ 85원</span>
+              
+              {/* Tooltip disclaimer */}
+              <div className="absolute top-full right-0 mt-2 w-56 p-2 bg-gray-900 text-white text-[10px] leading-relaxed rounded-xl opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0 pointer-events-none z-[60] shadow-xl">
+                * 여러 결과물 사례를 기반으로 산정된 최소/최대 추정치이며, 실제 결과물(토큰량)에 따라 오차가 발생할 수 있음을 알려드립니다.
+              </div>
+            </div>
 
-          <AnimatePresence>
-            {showKeyInput && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="bg-white p-4 rounded-2xl shadow-2xl border border-gray-100 w-72"
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setShowPatchNotes(!showPatchNotes)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all ${
+                  showPatchNotes ? 'bg-black text-white' : 'bg-white text-gray-700 border border-gray-100'
+                }`}
               >
-                <form onSubmit={handleSaveApiKey} className="space-y-3">
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Google Gemini API Key</label>
-                  <input 
-                    name="apiKey"
-                    type="password"
-                    defaultValue={apiKey}
-                    placeholder="AI Studio에서 발급받은 키 입력"
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                  <button type="submit" className="w-full bg-teal-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-teal-700 transition-colors">
-                    저장하기
-                  </button>
-                </form>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <History size={16} />
+                <span className="text-sm font-medium">패치노트</span>
+              </button>
+
+              <button 
+                onClick={() => setShowKeyInput(!showKeyInput)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all ${
+                  apiKey ? 'bg-teal-50 text-teal-700 border border-teal-100' : 'bg-white text-gray-700 border border-gray-100'
+                }`}
+              >
+                <Key size={16} />
+                <span className="text-sm font-medium">API Key {apiKey ? '적용됨' : '미적용'}</span>
+              </button>
+            </div>
+
+            <AnimatePresence>
+              {showPatchNotes && (
+                <motion.div 
+                  key="patch-notes-modal"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 0.95, y: 0 }}
+                  whileHover={{ opacity: 1 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="bg-white p-6 rounded-3xl shadow-2xl border border-gray-100 w-96 max-h-[70vh] overflow-y-auto"
+                >
+                  <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
+                    <div className="p-2 bg-gray-100 rounded-xl">
+                      <History size={18} className="text-gray-900" />
+                    </div>
+                    <h3 className="font-black text-gray-900 text-lg uppercase tracking-tight">System Patch Notes</h3>
+                  </div>
+                  <div className="space-y-8">
+                    {PATCH_NOTES.map((note, index) => (
+                      <div key={index} className="relative pl-6 border-l-2 border-teal-100 last:border-0 pb-2">
+                        <div className="absolute left-[-9px] top-0 w-4 h-4 rounded-full bg-teal-500 border-4 border-white shadow-sm" />
+                        <span className="text-[10px] font-black text-teal-600 block mb-1 uppercase tracking-widest">{note.date}</span>
+                        <h4 className="font-bold text-gray-800 text-sm mb-2">{note.title}</h4>
+                        <ul className="space-y-1.5">
+                          {note.changes.map((change, i) => (
+                            <li key={i} className="text-xs text-gray-500 leading-relaxed flex gap-2">
+                              <span className="text-teal-400">•</span>
+                              {change}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {showKeyInput && (
+                <motion.div 
+                  key="api-key-modal"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="bg-white p-4 rounded-2xl shadow-2xl border border-gray-100 w-72"
+                >
+                  <form onSubmit={handleSaveApiKey} className="space-y-3">
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Google Gemini API Key</label>
+                    <input 
+                      name="apiKey"
+                      type="password"
+                      defaultValue={apiKey}
+                      placeholder="AI Studio에서 발급받은 키 입력"
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                    <button type="submit" className="w-full bg-teal-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-teal-700 transition-colors">
+                      저장하기
+                    </button>
+                  </form>
+                </motion.div>
+              )}
+            </AnimatePresence>
         </div>
       </header>
 
@@ -550,6 +661,7 @@ export default function App() {
         <AnimatePresence>
           {loading && (
             <motion.div 
+              key="analysis-progress"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
@@ -588,6 +700,7 @@ export default function App() {
         <AnimatePresence>
           {report && (
             <motion.section 
+              key="analysis-report"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="space-y-8"
@@ -613,12 +726,13 @@ export default function App() {
                     const regex = /\[(BOLD|RED|BLUE|YELLOW)\](.*?)\[\/\1\]|([^\[]+|\[(?!BOLD|RED|BLUE|YELLOW|\/BOLD|\/RED|\/BLUE|\/YELLOW).*?\])/g;
                     let match;
                     while ((match = regex.exec(line)) !== null) {
+                      const partKey = `${i}-${parts.length}`;
                       if (match[1]) {
                         const tag = match[1];
                         const content = match[2];
                         parts.push(
                           <span 
-                            key={parts.length}
+                            key={partKey}
                             className={`
                               ${tag === 'BOLD' ? 'font-bold text-gray-900' : ''}
                               ${tag === 'RED' ? 'text-red-500' : ''}
@@ -630,7 +744,7 @@ export default function App() {
                           </span>
                         );
                       } else {
-                        parts.push(<span key={parts.length}>{match[3]}</span>);
+                        parts.push(<span key={partKey}>{match[3]}</span>);
                       }
                     }
                     return <div key={i} className={i === 0 ? "text-2xl font-black text-center mb-10 text-teal-700" : "mb-3 font-medium"}>{parts}</div>;
@@ -668,6 +782,7 @@ export default function App() {
           <AnimatePresence>
             {showMailInfo && (
               <motion.div 
+                key="maintenance-info"
                 initial={{ opacity: 0, scale: 0.9, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 10 }}
